@@ -1,118 +1,86 @@
 # openwrt-iran-split-tunnel
 
-تفکیک خودکار ترافیک **ایران / خارج** روی OpenWrt با استفاده از **Momo + sing-box + Hysteria2**.
+<p align="center">
+  <strong>English</strong> | <a href="README.fa.md">فارسی</a>
+</p>
 
-این پروژه برای کسانی ساخته شده که می‌خواهند:
+Automatic **Iran / international traffic split tunneling** for OpenWrt using **Momo + sing-box + Hysteria2**.
 
-- سایت‌ها و IPهای ایرانی مستقیم از اینترنت خودشان باز شوند.
-- ترافیک خارج از ایران از Hysteria2 عبور کند.
-- تنظیمات تا جای ممکن خودکار باشد.
-- روی مدل‌های مختلف روتر OpenWrt قابل استفاده باشد و به یک دستگاه خاص وابسته نباشد.
+This project is built for a simple goal:
 
-> وضعیت پروژه: نسخه عمومی اولیه `0.1.x`. بهتر است قبل از استفاده روی روتر اصلی، روی دستگاهی که امکان بازیابی آن را دارید تست کنید.
+- Iranian domains and IP ranges go **DIRECT** through the normal WAN connection.
+- International traffic goes through **Hysteria2**.
+- TCP and UDP are both handled.
+- Foreign DNS queries are resolved through the tunnel to reduce DNS pollution issues.
+- Installation is designed to be as automatic and device-independent as possible across supported OpenWrt targets.
 
----
+> Project status: early public release (`0.1.x`). Test it on recoverable hardware before relying on it on a critical router.
 
-## این پروژه دقیقاً چه کاری انجام می‌دهد؟
-
-بعد از نصب، مسیر ترافیک به شکل زیر خواهد بود:
+## How it works
 
 ```text
-دستگاه‌های LAN / Wi‑Fi
-        |
-        v
-      Momo
-        |
-        v
-    sing-box
-      /   \
-     /     \
- ایران      خارج
- DIRECT    Hysteria2
+LAN / Wi-Fi
+     |
+     v
+    Momo
+     |
+     v
+  sing-box
+   /     \
+  /       \
+Iran    Foreign
+DIRECT  Hysteria2
 ```
 
-به زبان ساده:
+Traffic flow:
 
-- IPها و دامنه‌های ایرانی → **DIRECT**
-- سایر ترافیک IPv4 → **Hysteria2**
-- TCP → از طریق Momo Redirect وارد sing-box می‌شود.
-- UDP → از طریق Momo TPROXY وارد sing-box می‌شود.
-- DNS سایت‌های خارجی → Cloudflare DoH از داخل Hysteria2
-- DNS سایت‌های ایرانی → مستقیم
-- پنل گرافیکی Momo در LuCI باقی می‌ماند.
+- Iranian IPs and domains → **DIRECT**
+- Other IPv4 traffic → **Hysteria2**
+- TCP → Momo Redirect → sing-box
+- UDP → Momo TPROXY → sing-box
+- Iranian DNS → direct resolver
+- Foreign DNS → Cloudflare DoH through Hysteria2
 
-لیست IP و دامنه‌های ایران از پروژه زیر دریافت می‌شود:
-
-[Chocolate4U/Iran-sing-box-rules](https://github.com/Chocolate4U/Iran-sing-box-rules)
-
-فایل‌های اصلی مورد استفاده:
+Iran routing data is provided by [Chocolate4U/Iran-sing-box-rules](https://github.com/Chocolate4U/Iran-sing-box-rules):
 
 ```text
-geoip-ir.srs
 geosite-ir.srs
+geoip-ir.srs
 ```
 
----
+## Supported systems
 
-## مناسب چه کسانی است؟
+The installer is designed for:
 
-اگر OpenWrt دارید و می‌خواهید مثلاً:
-
-```text
-digikala.com  → اینترنت مستقیم
-varzesh3.com  → اینترنت مستقیم
-سایت‌های بانکی → اینترنت مستقیم
-
-YouTube       → Hysteria2
-Facebook      → Hysteria2
-سایت‌های خارجی → Hysteria2
-```
-
-این پروژه برای همین سناریو ساخته شده است.
-
-نیازی نیست برای هر دامنه به‌صورت دستی Rule بسازید.
-
----
-
-## سیستم‌های پشتیبانی‌شده
-
-Installer فعلاً برای این محیط‌ها طراحی شده است:
-
-- OpenWrt 24.10 با `opkg`
-- OpenWrt 25.12 با `apk`
-- نسخه‌های سازگار OpenWrt SNAPSHOT
+- OpenWrt `24.10` using `opkg`
+- OpenWrt `25.12` using `apk`
+- Compatible OpenWrt Snapshot builds
 - `firewall4`
 - `nftables`
-- معماری‌هایی که Momo برای آن‌ها پکیج رسمی منتشر کرده باشد
+- Architectures for which Momo publishes an official package
 
-Installer تلاش می‌کند این موارد را خودش تشخیص دهد:
+The installer automatically attempts to detect:
 
-- نسخه OpenWrt
-- `apk` یا `opkg`
-- معماری CPU از `DISTRIB_ARCH`
-- فایل مناسب Momo برای همان معماری
-- شبکه LAN
-- مقدار RAM
-- فضای آزاد Overlay
-- وجود firewall4 و nftables
+- OpenWrt release
+- package manager (`apk` or `opkg`)
+- OpenWrt package architecture from `DISTRIB_ARCH`
+- device model
+- available RAM and Overlay space
+- the matching Momo package for the detected OpenWrt release and architecture
 
-بنابراین پروژه به مدل خاصی مثل Linksys، TP-Link، Xiaomi یا دستگاه x86 محدود نشده است.
+The project is not tied to one Linksys, TP-Link, Xiaomi, GL.iNet, x86, or other specific device model. The router still needs enough storage and memory to run Momo and sing-box. Physics remains annoyingly undefeated.
 
-البته دستگاه باید RAM و Flash کافی برای اجرای Momo و sing-box داشته باشد. روی سخت‌افزارهای بسیار قدیمی با حافظه بسیار کم، معجزه‌ای در کار نیست.
+## Installation
 
----
-
-# نصب
-
-ابتدا با SSH وارد OpenWrt شوید:
+SSH into your OpenWrt router:
 
 ```sh
 ssh root@192.168.1.1
 ```
 
-اگر IP روتر شما چیز دیگری است، همان IP را وارد کنید.
+Use your router's actual IP address if it is different.
 
-سپس این دستور را اجرا کنید:
+Then run:
 
 ```sh
 wget -O /tmp/iran-split-install.sh \
@@ -120,203 +88,111 @@ wget -O /tmp/iran-split-install.sh \
 sh /tmp/iran-split-install.sh
 ```
 
-Installer در طول نصب از شما لینک Hysteria2 می‌خواهد:
+During installation, the script asks for your Hysteria2 URI:
 
 ```text
 Paste your Hysteria2 URI:
+> hysteria2://...
 ```
 
-مثال ساختار لینک:
+Your real URI, password, and server credentials are processed locally on the router and are **not uploaded to this repository**.
 
-```text
-hysteria2://password@example.com:443?...
-```
+### Non-interactive installation
 
-لینک واقعی، پسورد و اطلاعات سرور شما **در GitHub آپلود نمی‌شود** و فقط روی خود روتر پردازش می‌شود.
-
----
-
-## نصب بدون سؤال Interactive
-
-اگر می‌خواهید لینک را مستقیم به Installer بدهید:
+You can also pass the URI through an environment variable:
 
 ```sh
 HY2_URI='hysteria2://...' sh /tmp/iran-split-install.sh
 ```
 
-لینک واقعی خودتان را به جای `hysteria2://...` قرار دهید.
+## DNS design
 
----
+A common failure mode is deceptively annoying: the tunnel is connected and an external IP is visible, but sites such as YouTube still fail to load. A direct or polluted DNS path is often the reason.
 
-# DNS چگونه تنظیم می‌شود؟
-
-یکی از مشکلات رایج این است که VPN وصل است و IP خارجی نمایش داده می‌شود، ولی سایت‌هایی مثل YouTube باز نمی‌شوند.
-
-دلیل معمول این مشکل DNS مستقیم یا آلوده است.
-
-این پروژه برای IPv4 یک DNS inbound روی این آدرس ایجاد می‌کند:
+For IPv4, the project creates a sing-box DNS inbound on:
 
 ```text
 0.0.0.0:1053
 ```
 
-سپس Momo درخواست‌های DNS دستگاه‌های LAN را به آن هدایت می‌کند.
-
-مسیر DNS به شکل زیر است:
+Momo redirects LAN client DNS traffic to that inbound.
 
 ```text
-DNS دستگاه
+Client DNS
     |
     v
 Momo DNS Hijack
     |
     v
 sing-box
-   /   \
-  /     \
-ایران   خارج
+   /     \
+Iran   Foreign
 Direct  Cloudflare DoH
-        از داخل HS2
+        through Hysteria2
 ```
 
-به این ترتیب سایت خارجی با IP اشتباه یا DNS فیلترشده Resolve نمی‌شود.
+If your OpenWrt firmware also has a separate **DNS Redirect** feature enabled, avoid running a second DNS hijack path at the same time unless you know exactly how the two interact. Two competing DNS interception systems are an excellent way to turn a simple network into performance art.
 
----
+## Iran rule sets
 
-## نکته مهم درباره DNS Redirect در OpenWrt
-
-اگر Firmware شما در این مسیر گزینه‌ای به نام **DNS Redirect** دارد:
-
-```text
-Network → DHCP and DNS → DNS Redirect
-```
-
-هنگام استفاده از DNS Hijack خود Momo بهتر است Redirect دوم را همزمان فعال نکنید.
-
-داشتن دو سیستم مختلف برای Hijack کردن DNS می‌تواند باعث رفتار عجیب، DNS pollution یا Route اشتباه شود.
-
----
-
-# Ruleهای ایران
-
-Ruleها روی خود روتر ذخیره می‌شوند:
+The downloaded rule sets are stored on the router at:
 
 ```text
 /etc/momo/rules/geosite-ir.srs
 /etc/momo/rules/geoip-ir.srs
 ```
 
-این Ruleها مشخص می‌کنند کدام دامنه‌ها و IPها مربوط به ایران هستند و باید مستقیم باز شوند.
-
----
-
-## آپدیت خودکار Rule ایران
-
-Installer یک Cron هفتگی ایجاد می‌کند.
-
-زمان پیش‌فرض:
-
-```text
-یکشنبه ساعت 04:17
-```
-
-آپدیت به‌صورت امن انجام می‌شود:
-
-```text
-دانلود فایل جدید
-      ↓
-تست و Validation
-      ↓
-در صورت سالم بودن
-      ↓
-جایگزینی Rule قبلی
-```
-
-اگر فایل دانلودشده خراب باشد، Rule سالم فعلی حذف نمی‌شود.
-
-برای آپدیت دستی:
+To update them manually:
 
 ```sh
 openwrt-iran-split-update
 ```
 
----
+The updater downloads and validates new files before replacing the current rules. If the update fails, the last known-good files are kept.
 
-# بررسی سلامت نصب
+## Health check
 
-بعد از نصب می‌توانید این دستور را اجرا کنید:
+After installation:
 
 ```sh
 openwrt-iran-split-health
 ```
 
-این ابزار موارد اصلی را بررسی می‌کند، از جمله:
+The health checker verifies the important runtime pieces, including Momo, sing-box, nftables, policy routing, and the DNS/Redirect/TPROXY listeners.
 
-- وضعیت Momo
-- وضعیت sing-box
-- جدول nftables مربوط به Momo
-- TPROXY routing
-- DNS listener
-- Redirect listener
-- TPROXY listener
-
----
-
-## تست IP از یک دستگاه متصل به روتر
-
-روی کامپیوتر متصل به LAN یا Wi‑Fi روتر:
+From a device connected to the router, you can check the external IPv4 address with:
 
 ```sh
 curl -4 https://api.ipify.org
 ```
 
-برای ترافیک خارجی باید IP سرور Hysteria2 نمایش داده شود.
+International traffic should show the Hysteria2 exit IP.
 
-سپس یک سایت ایرانی و یک سایت خارجی را تست کنید.
+## IPv6
 
----
+In `0.1.x`, IPv6 proxying and IPv6 DNS hijacking are disabled by default. The current goal is a predictable IPv4 setup across a wide range of OpenWrt networks.
 
-# IPv6
+If your network has public IPv6, review Dual Stack behavior separately before relying on the tunnel for IPv6 traffic.
 
-در نسخه `0.1.x`، Proxy کردن IPv6 و IPv6 DNS Hijack به‌صورت پیش‌فرض خاموش است.
+## Low-memory routers
 
-دلیلش ساده است: تنظیم IPv6 در شبکه‌های مختلف OpenWrt یکسان نیست و فعال کردن ناقص آن می‌تواند باعث IPv6 leak شود.
+The installer checks available RAM and Overlay storage. It intentionally does **not**:
 
-نسخه فعلی پروژه روی IPv4 تمرکز دارد تا رفتار قابل پیش‌بینی‌تری داشته باشد.
+- repartition storage
+- format USB devices
+- automatically create Swap
 
-اگر شبکه شما IPv6 عمومی دارد، قبل از اتکا به تونل برای IPv6 باید تنظیمات Dual Stack را جداگانه بررسی کنید.
+An installer that silently reformats storage is less of an installer and more of an incident report waiting to happen.
 
----
+## Backups
 
-# روترهای با RAM کم
-
-Installer مقدار RAM دستگاه را بررسی می‌کند و برای روترهای ضعیف‌تر محدودیت‌های مناسب Go را روی Momo اعمال می‌کند تا مصرف حافظه کنترل شود.
-
-پروژه به‌صورت خودکار:
-
-- دیسک شما را پارتیشن‌بندی نمی‌کند.
-- فلش USB را Format نمی‌کند.
-- Swap ایجاد نمی‌کند.
-
-چون اسکریپتی که خودسرانه Storage کاربر را فرمت کند، بیشتر شبیه حادثه است تا Installer.
-
----
-
-# Backup
-
-قبل از تغییر تنظیمات موجود Momo، Installer از فایل‌های مهم نسخه پشتیبان تهیه می‌کند.
-
-Backupها در این مسیر قرار می‌گیرند:
+Before changing important existing settings, backups are stored under:
 
 ```text
 /etc/openwrt-iran-split-tunnel/backups/
 ```
 
----
-
-# حذف پروژه
-
-برای حذف تنظیمات ایجادشده توسط این پروژه:
+## Uninstall
 
 ```sh
 wget -O /tmp/iran-split-uninstall.sh \
@@ -324,123 +200,33 @@ wget -O /tmp/iran-split-uninstall.sh \
 sh /tmp/iran-split-uninstall.sh
 ```
 
-Uninstaller به‌صورت عمدی پکیج‌های زیر را حذف نمی‌کند:
+The uninstaller intentionally does not remove Momo, the Momo LuCI app, or sing-box, because users may rely on those packages for other configurations.
+
+## Security
+
+Do not post any of the following in public Issues, commits, or files:
 
 ```text
-momo
-luci-app-momo
-sing-box
-```
-
-چون ممکن است کاربر برای کار دیگری هم از آن‌ها استفاده کند.
-
----
-
-# امنیت
-
-هیچ‌وقت این موارد را داخل Issue، Commit یا فایل عمومی GitHub قرار ندهید:
-
-```text
-Hysteria2 URI واقعی
+Real Hysteria2 URI
 Password
 Certificate
-API Token
-Backup کامل روتر
+API token
+Full router backup
 ```
 
-Momo از Releaseهای رسمی این پروژه دانلود می‌شود:
+Momo is downloaded from official releases of [nikkinikki-org/OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo).
 
-[nikkinikki-org/OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo)
+## Project scope
 
-Ruleهای ایران از این پروژه دریافت می‌شوند:
-
-[Chocolate4U/Iran-sing-box-rules](https://github.com/Chocolate4U/Iran-sing-box-rules)
-
----
-
-# محدوده پروژه
-
-این پروژه عمداً روی یک سناریوی مشخص تمرکز دارد:
+The current release intentionally focuses on one setup:
 
 ```text
-OpenWrt
- + Momo
- + sing-box
- + Hysteria2
- + Iran DIRECT
- + Foreign Proxy
+OpenWrt + Momo + sing-box + Hysteria2
+Iran DIRECT / Foreign Proxy
 ```
 
-فعلاً OpenVPN، OpenConnect و چندین Backend مختلف به پروژه اضافه نشده‌اند تا پروژه ساده، قابل فهم و قابل نگهداری باقی بماند.
+OpenVPN, OpenConnect, and other backends are intentionally outside the `0.1.x` scope so the project stays focused and maintainable.
 
----
+## License
 
-# گزارش مشکل
-
-اگر روی دستگاهی Installer کار نکرد، هنگام باز کردن Issue بهتر است این اطلاعات را ارسال کنید:
-
-```sh
-cat /etc/openwrt_release
-uname -a
-free -m
-```
-
-همچنین خروجی این دستور مفید است:
-
-```sh
-openwrt-iran-split-health
-```
-
-**اطلاعات Hysteria2، پسورد یا Secretهای خود را قبل از ارسال پاک کنید.**
-
----
-
-# License
-
-این پروژه تحت **MIT License** منتشر شده است.
-
-می‌توانید:
-
-- رایگان استفاده کنید.
-- تغییرش دهید.
-- Fork کنید.
-- دوباره منتشر کنید.
-- در پروژه‌های شخصی یا تجاری استفاده کنید.
-
-فقط شرایط ساده MIT License را رعایت کنید.
-
----
-
-# پروژه‌های اصلی مورد استفاده
-
-- [OpenWrt-momo](https://github.com/nikkinikki-org/OpenWrt-momo)
-- [sing-box](https://github.com/SagerNet/sing-box)
-- [Iran-sing-box-rules](https://github.com/Chocolate4U/Iran-sing-box-rules)
-
----
-
-## English summary
-
-`openwrt-iran-split-tunnel` automatically configures **Iran DIRECT / international Hysteria2** split tunneling on compatible OpenWrt systems using **Momo + sing-box**.
-
-Main features:
-
-- Automatic OpenWrt/package architecture detection
-- `apk` and `opkg` detection
-- Iran IP/domain routing to DIRECT
-- Foreign IPv4 traffic through Hysteria2
-- TCP Redirect + UDP TPROXY
-- DNS anti-pollution design
-- Automatic Iran rule updates
-- Low-memory tuning
-- Backup and health-check helpers
-
-Install:
-
-```sh
-wget -O /tmp/iran-split-install.sh \
-  https://raw.githubusercontent.com/MehrooExplains/openwrt-iran-split-tunnel/main/install.sh && \
-sh /tmp/iran-split-install.sh
-```
-
-Status: early public release (`0.1.x`). Test on recoverable hardware first.
+This project is released under the [MIT License](LICENSE).
