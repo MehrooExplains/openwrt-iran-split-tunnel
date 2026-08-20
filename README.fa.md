@@ -223,8 +223,6 @@ OpenWrt + Momo + sing-box + Hysteria2
 Iran DIRECT / Foreign Proxy
 ```
 
-OpenVPN، OpenConnect و backendهای دیگر فعلاً بخشی از نسخه `0.1.x` نیستند تا پروژه ساده و قابل نگهداری بماند.
-
 ## License
 
 این پروژه تحت [MIT License](LICENSE) منتشر شده است.
