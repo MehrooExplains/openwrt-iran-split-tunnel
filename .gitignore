@@ -1,0 +1,22 @@
+# Local secrets and real tunnel profiles
+*.env
+.env
+secrets/
+private/
+*.ovpn
+*credentials*
+*secret*
+
+# Runtime / generated files
+*.log
+*.tmp
+*.bak
+*.backup
+*.db
+*.srs
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
