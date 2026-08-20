@@ -18,4 +18,4 @@ jobs:
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Check POSIX shell scripts
-        run: shellcheck -s sh install.sh update-rules.sh health-check.sh uninstall.sh
+        run: shellcheck -S error -s sh install.sh update-rules.sh health-check.sh uninstall.sh
