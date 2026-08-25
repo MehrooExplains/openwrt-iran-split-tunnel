@@ -56,8 +56,8 @@ if [ "$same" = "1" ]; then
     exit 0
 fi
 
-[ -f "$GEO_SITE" ] && cp "$GEO_SITE" "$TMP/geosite-old.srs" || true
-[ -f "$GEO_IP" ] && cp "$GEO_IP" "$TMP/geoip-old.srs" || true
+if [ -f "$GEO_SITE" ]; then cp "$GEO_SITE" "$TMP/geosite-old.srs"; fi
+if [ -f "$GEO_IP" ]; then cp "$GEO_IP" "$TMP/geoip-old.srs"; fi
 cp "$TMP/geosite-ir.srs" "$GEO_SITE.new"
 cp "$TMP/geoip-ir.srs" "$GEO_IP.new"
 mv "$GEO_SITE.new" "$GEO_SITE"
@@ -69,8 +69,8 @@ if [ "$(/etc/init.d/momo status 2>/dev/null || true)" = "running" ]; then was_ru
 if [ "$was_running" = "1" ]; then
     if ! /etc/init.d/momo restart >/dev/null 2>&1; then
         warn "Momo restart failed; restoring previous rule sets."
-        [ -f "$TMP/geosite-old.srs" ] && cp "$TMP/geosite-old.srs" "$GEO_SITE" || true
-        [ -f "$TMP/geoip-old.srs" ] && cp "$TMP/geoip-old.srs" "$GEO_IP" || true
+        if [ -f "$TMP/geosite-old.srs" ]; then cp "$TMP/geosite-old.srs" "$GEO_SITE"; fi
+        if [ -f "$TMP/geoip-old.srs" ]; then cp "$TMP/geoip-old.srs" "$GEO_IP"; fi
         /etc/init.d/momo restart >/dev/null 2>&1 || true
         exit 1
     fi

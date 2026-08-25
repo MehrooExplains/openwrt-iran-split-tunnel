@@ -121,9 +121,9 @@ pkg_install ca-bundle jsonfilter firewall4 ip-full kmod-inet-diag kmod-nft-socke
 modprobe nft_tproxy 2>/dev/null || true
 modprobe nft_socket 2>/dev/null || true
 
-[ -f /etc/config/momo ] && cp -a /etc/config/momo "$BACKUP_DIR/momo.uci" || true
-[ -f "$PROFILE" ] && cp -a "$PROFILE" "$BACKUP_DIR/${PROFILE_NAME}" || true
-[ -f /etc/momo/ucode/hijack.ut ] && cp -a /etc/momo/ucode/hijack.ut "$BACKUP_DIR/hijack.ut" || true
+if [ -f /etc/config/momo ]; then cp -a /etc/config/momo "$BACKUP_DIR/momo.uci"; fi
+if [ -f "$PROFILE" ]; then cp -a "$PROFILE" "$BACKUP_DIR/${PROFILE_NAME}"; fi
+if [ -f /etc/momo/ucode/hijack.ut ]; then cp -a /etc/momo/ucode/hijack.ut "$BACKUP_DIR/hijack.ut"; fi
 
 log "Resolving the latest Momo release..."
 fetch_to "$MOMO_API" "$TMP_DIR/momo-release.json" || die "Could not query the latest Momo release."
@@ -157,7 +157,9 @@ local_pkg_install "$MOMO_PKG" "$LUCI_PKG" || die "Momo package installation fail
 HIJACK_URL="https://raw.githubusercontent.com/${MOMO_REPO}/${MOMO_TAG}/momo/files/ucode/hijack.ut"
 if fetch_to "$HIJACK_URL" "$TMP_DIR/hijack.ut" && [ -s "$TMP_DIR/hijack.ut" ]; then
     mkdir -p /etc/momo/ucode
-    [ -f /etc/momo/ucode/hijack.ut ] && cp -a /etc/momo/ucode/hijack.ut "$BACKUP_DIR/hijack.ut.packaged" || true
+    if [ -f /etc/momo/ucode/hijack.ut ]; then
+        cp -a /etc/momo/ucode/hijack.ut "$BACKUP_DIR/hijack.ut.packaged"
+    fi
     cp "$TMP_DIR/hijack.ut" /etc/momo/ucode/hijack.ut
     chmod 644 /etc/momo/ucode/hijack.ut
 else
@@ -464,7 +466,9 @@ fi
 log "Starting Momo..."
 /etc/init.d/momo enable
 if ! /etc/init.d/momo restart; then
-    [ -f "$BACKUP_DIR/momo.uci" ] && cp -a "$BACKUP_DIR/momo.uci" /etc/config/momo || true
+    if [ -f "$BACKUP_DIR/momo.uci" ]; then
+        cp -a "$BACKUP_DIR/momo.uci" /etc/config/momo
+    fi
     die "Momo failed to restart. UCI backup was restored when available."
 fi
 sleep 4
