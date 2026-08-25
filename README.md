@@ -1,8 +1,12 @@
 # openwrt-iran-split-tunnel
 
 <p align="center">
-  <strong>English</strong> | <a href="README.fa.md">فارسی</a>
+  <strong>🇬🇧 English</strong>
+  &nbsp;|&nbsp;
+  <a href="README.fa.md"><img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/State_flag_of_the_Imperial_State_of_Iran_(with_standardized_lion_and_sun).svg?width=48" width="28" alt="Iranian Lion and Sun flag"> فارسی</a>
 </p>
+
+[![ShellCheck](https://github.com/MehrooExplains/openwrt-iran-split-tunnel/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/MehrooExplains/openwrt-iran-split-tunnel/actions/workflows/shellcheck.yml)
 
 Automatic **Iran / international traffic split tunneling** for OpenWrt using **Momo + sing-box + Hysteria2**.
 
@@ -69,6 +73,33 @@ The installer automatically attempts to detect:
 - the matching Momo package for the detected OpenWrt release and architecture
 
 The project is not tied to one Linksys, TP-Link, Xiaomi, GL.iNet, x86, or other specific device model. The router still needs enough storage and memory to run Momo and sing-box. Physics remains annoyingly undefeated.
+
+## Requirements
+
+- Root SSH access to a recoverable OpenWrt router
+- OpenWrt `24.10`, `25.12`, or a compatible Snapshot
+- `firewall4` and the `inet fw4` nftables table
+- An architecture supported by official Momo release assets
+- Enough free Overlay storage for Momo, LuCI, sing-box, and rule sets
+- A valid `hysteria2://` or `hy2://` URI
+- Working internet access during installation
+
+Back up the router before installation. Avoid first-time deployment on a remote
+router without failsafe, serial, or firmware-recovery access.
+
+## What the installer changes
+
+The installer:
+
+- installs required OpenWrt packages and official Momo/LuCI release assets;
+- creates `/etc/momo/profiles/iran-split-hy2.json`;
+- stores Iran rule sets under `/etc/momo/rules/`;
+- configures Momo DNS hijack, TCP Redirect, and UDP TPROXY for the detected LAN;
+- installs `openwrt-iran-split-update` and `openwrt-iran-split-health`;
+- schedules a weekly rule update in root's crontab;
+- stores state and backups under `/etc/openwrt-iran-split-tunnel/`.
+
+Existing Momo configuration and profile files are backed up before replacement.
 
 ## Installation
 
@@ -168,6 +199,17 @@ curl -4 https://api.ipify.org
 
 International traffic should show the Hysteria2 exit IP.
 
+Useful runtime inspection commands:
+
+```sh
+/etc/init.d/momo status
+logread | grep -i momo
+nft list table inet momo
+ip rule show
+ip route show table 80
+busybox netstat -lnptu | grep -E ':1053|:7891|:7892'
+```
+
 ## IPv6
 
 In `0.1.x`, IPv6 proxying and IPv6 DNS hijacking are disabled by default. The current goal is a predictable IPv4 setup across a wide range of OpenWrt networks.
@@ -201,6 +243,63 @@ sh /tmp/iran-split-uninstall.sh
 ```
 
 The uninstaller intentionally does not remove Momo, the Momo LuCI app, or sing-box, because users may rely on those packages for other configurations.
+
+## Troubleshooting
+
+### Unsupported OpenWrt release or missing Momo asset
+
+Check the detected values:
+
+```sh
+. /etc/openwrt_release
+printf 'release=%s arch=%s\n' "$DISTRIB_RELEASE" "$DISTRIB_ARCH"
+```
+
+The architecture and matching release branch must exist in the official Momo
+release. Do not install a package built for another architecture.
+
+### Momo does not start
+
+```sh
+/etc/init.d/momo status
+logread | grep -iE 'momo|sing-box'
+sing-box check -c /etc/momo/profiles/iran-split-hy2.json
+```
+
+Check the Hysteria2 server address, password, SNI, obfuscation parameters, and
+router clock. Invalid TLS time is a common cause of connection failure.
+
+### Iranian traffic is proxied
+
+Run the rule updater, confirm the files are present, and inspect Momo/sing-box
+logs:
+
+```sh
+openwrt-iran-split-update
+ls -lh /etc/momo/rules/
+logread | grep -iE 'momo|sing-box|rule'
+```
+
+### International domains do not open
+
+Confirm listeners on ports `1053`, `7891`, and `7892`. Disable competing DNS
+redirect or proxy applications and test again. Only one component should own
+LAN DNS interception unless their interaction is explicitly configured.
+
+### Roll back
+
+Run the uninstaller to disable the project configuration. Backups remain under
+`/etc/openwrt-iran-split-tunnel/backups/` for manual restoration. Momo and
+sing-box packages are intentionally retained.
+
+## Development checks
+
+```sh
+shellcheck -s sh install.sh update-rules.sh health-check.sh uninstall.sh
+sh -n install.sh update-rules.sh health-check.sh uninstall.sh
+```
+
+GitHub Actions runs ShellCheck on every relevant push and pull request.
 
 ## Security
 

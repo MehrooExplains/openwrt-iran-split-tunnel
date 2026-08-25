@@ -1,8 +1,12 @@
 # openwrt-iran-split-tunnel
 
 <p align="center">
-  <a href="README.md">English</a> | <strong>فارسی</strong>
+  <a href="README.md">🇬🇧 English</a>
+  &nbsp;|&nbsp;
+  <strong><img src="https://commons.wikimedia.org/wiki/Special:Redirect/file/State_flag_of_the_Imperial_State_of_Iran_(with_standardized_lion_and_sun).svg?width=48" width="28" alt="پرچم شیر و خورشید ایران"> فارسی</strong>
 </p>
+
+[![ShellCheck](https://github.com/MehrooExplains/openwrt-iran-split-tunnel/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/MehrooExplains/openwrt-iran-split-tunnel/actions/workflows/shellcheck.yml)
 
 تفکیک خودکار ترافیک **ایران / خارج** روی OpenWrt با استفاده از **Momo + sing-box + Hysteria2**.
 
@@ -69,6 +73,33 @@ Installer به‌صورت خودکار تلاش می‌کند موارد زیر 
 - پکیج مناسب Momo برای معماری و نسخه OpenWrt
 
 پروژه به مدل خاصی از Linksys، TP-Link، Xiaomi، GL.iNet یا x86 محدود نیست. دستگاه باید منابع کافی برای اجرای Momo و sing-box داشته باشد.
+
+## پیش‌نیازها
+
+- دسترسی SSH با کاربر root به روتر قابل‌بازیابی
+- OpenWrt نسخه `24.10`، `25.12` یا Snapshot سازگار
+- `firewall4` و جدول nftables با نام `inet fw4`
+- معماری دارای فایل رسمی در Releaseهای Momo
+- فضای Overlay کافی برای Momo، LuCI، sing-box و Ruleها
+- URI معتبر با ابتدای `hysteria2://` یا `hy2://`
+- اینترنت فعال هنگام نصب
+
+پیش از نصب از روتر بکاپ بگیرید. نصب اولیه روی روتر دوردست بدون دسترسی Failsafe،
+Serial یا Firmware Recovery توصیه نمی‌شود.
+
+## تغییراتی که Installer انجام می‌دهد
+
+Installer:
+
+- پکیج‌های لازم و فایل‌های رسمی Momo/LuCI را نصب می‌کند.
+- پروفایل `/etc/momo/profiles/iran-split-hy2.json` را می‌سازد.
+- Ruleهای ایران را در `/etc/momo/rules/` قرار می‌دهد.
+- DNS Hijack، TCP Redirect و UDP TPROXY را برای LAN تشخیص‌داده‌شده تنظیم می‌کند.
+- دستورهای `openwrt-iran-split-update` و `openwrt-iran-split-health` را نصب می‌کند.
+- آپدیت هفتگی Ruleها را در Crontab کاربر root ثبت می‌کند.
+- State و Backupها را در `/etc/openwrt-iran-split-tunnel/` نگه می‌دارد.
+
+تنظیمات موجود Momo و فایل Profile پیش از جایگزینی پشتیبان‌گیری می‌شوند.
 
 ## نصب
 
@@ -166,6 +197,17 @@ curl -4 https://api.ipify.org
 
 برای ترافیک خارجی باید IP خروجی Hysteria2 دیده شود.
 
+دستورهای مفید برای بررسی Runtime:
+
+```sh
+/etc/init.d/momo status
+logread | grep -i momo
+nft list table inet momo
+ip rule show
+ip route show table 80
+busybox netstat -lnptu | grep -E ':1053|:7891|:7892'
+```
+
 ## IPv6
 
 در نسخه `0.1.x`، Proxy کردن IPv6 و IPv6 DNS Hijack به‌صورت پیش‌فرض خاموش است. هدف فعلی پروژه یک مسیر IPv4 قابل پیش‌بینی و پایدار است.
@@ -199,6 +241,60 @@ sh /tmp/iran-split-uninstall.sh
 ```
 
 Uninstaller به‌صورت عمدی Momo، LuCI Momo و sing-box را حذف نمی‌کند، چون ممکن است برای تنظیمات دیگری نیز مورد استفاده باشند.
+
+## رفع اشکال
+
+### نسخه OpenWrt پشتیبانی نمی‌شود یا فایل Momo پیدا نمی‌شود
+
+```sh
+. /etc/openwrt_release
+printf 'release=%s arch=%s\n' "$DISTRIB_RELEASE" "$DISTRIB_ARCH"
+```
+
+معماری و شاخه نسخه باید در Release رسمی Momo وجود داشته باشند. پکیج معماری
+دیگر را روی روتر نصب نکنید.
+
+### Momo اجرا نمی‌شود
+
+```sh
+/etc/init.d/momo status
+logread | grep -iE 'momo|sing-box'
+sing-box check -c /etc/momo/profiles/iran-split-hy2.json
+```
+
+آدرس سرور Hysteria2، پسورد، SNI، پارامترهای Obfuscation و ساعت روتر را بررسی
+کنید. نادرست‌بودن زمان دستگاه می‌تواند TLS را خراب کند.
+
+### ترافیک ایران از Proxy عبور می‌کند
+
+```sh
+openwrt-iran-split-update
+ls -lh /etc/momo/rules/
+logread | grep -iE 'momo|sing-box|rule'
+```
+
+آپدیت Ruleها را اجرا، وجود فایل‌ها را بررسی و Logها را مطالعه کنید.
+
+### دامنه‌های خارجی باز نمی‌شوند
+
+Listenerهای پورت `1053`، `7891` و `7892` را بررسی کنید. برنامه‌های Proxy یا DNS
+Redirect رقیب را موقتاً غیرفعال کنید. مگر با تنظیم آگاهانه، فقط یک سرویس باید
+DNS کلاینت‌های LAN را Hijack کند.
+
+### بازگشت به وضعیت قبل
+
+Uninstaller را اجرا کنید تا تنظیمات پروژه غیرفعال شوند. Backupها برای بازیابی
+دستی در `/etc/openwrt-iran-split-tunnel/backups/` باقی می‌مانند. پکیج‌های Momo
+و sing-box عمداً حذف نمی‌شوند.
+
+## بررسی توسعه
+
+```sh
+shellcheck -s sh install.sh update-rules.sh health-check.sh uninstall.sh
+sh -n install.sh update-rules.sh health-check.sh uninstall.sh
+```
+
+GitHub Actions در هر Push یا Pull Request مرتبط ShellCheck را اجرا می‌کند.
 
 ## امنیت
 

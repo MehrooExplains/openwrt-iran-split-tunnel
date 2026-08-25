@@ -32,6 +32,7 @@ trap cleanup EXIT INT TERM
 
 [ "$(id -u)" = "0" ] || die "Run this installer as root."
 [ -r /etc/openwrt_release ] || die "This installer is for OpenWrt only."
+# shellcheck source=/dev/null
 . /etc/openwrt_release
 
 mkdir -p "$TMP_DIR" "$STATE_DIR" "$BACKUP_DIR"
@@ -376,7 +377,11 @@ chmod 600 "$PROFILE"
 
 log "Validating sing-box profile..."
 if ! sing-box check -c "$PROFILE"; then
-    [ -f "$BACKUP_DIR/${PROFILE_NAME}" ] && cp -a "$BACKUP_DIR/${PROFILE_NAME}" "$PROFILE" || rm -f "$PROFILE"
+    if [ -f "$BACKUP_DIR/${PROFILE_NAME}" ]; then
+        cp -a "$BACKUP_DIR/${PROFILE_NAME}" "$PROFILE"
+    else
+        rm -f "$PROFILE"
+    fi
     die "sing-box rejected the generated configuration. Previous profile was restored when available."
 fi
 
