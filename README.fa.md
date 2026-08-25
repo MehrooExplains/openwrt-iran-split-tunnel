@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 # openwrt-iran-split-tunnel
 
 <p align="center">
@@ -87,11 +90,31 @@ Installer به‌صورت خودکار تلاش می‌کند موارد زیر 
 پیش از نصب از روتر بکاپ بگیرید. نصب اولیه روی روتر دوردست بدون دسترسی Failsafe،
 Serial یا Firmware Recovery توصیه نمی‌شود.
 
+### ترتیب بررسی پیش‌نیازها
+
+پیش از دانلود Momo، دریافت اطلاعات اتصال یا تغییر تنظیمات Tunnel، Installer:
+
+۱. نسخه OpenWrt، معماری پکیج و فضای آزاد Overlay را اعتبارسنجی می‌کند.
+
+۲. تک‌تک پکیج‌های لازم را با `apk` یا `opkg` بررسی می‌کند.
+
+۳. فقط زمانی `curl` را به پیش‌نیازها اضافه می‌کند که Downloader دیگری موجود نباشد.
+
+۴. فقط در صورت وجود پکیج مفقود، Package Index را به‌روزرسانی می‌کند.
+
+۵. فقط پیش‌نیازهای مفقود را نصب می‌کند.
+
+۶. Commandهای ضروری، Downloader، `firewall4` و جدول `inet fw4` را بررسی می‌کند.
+
+۷. فقط پس از موفقیت همه بررسی‌ها وارد دانلود و پیکربندی Momo می‌شود.
+
+شکست هر پیش‌نیاز باعث توقف Installer پیش از تغییر تنظیمات Momo خواهد شد.
+
 ## تغییراتی که Installer انجام می‌دهد
 
 Installer:
 
-- پکیج‌های لازم و فایل‌های رسمی Momo/LuCI را نصب می‌کند.
+- پیش‌نیازهای OpenWrt را بررسی و فقط موارد مفقود را نصب می‌کند؛ سپس فایل‌های رسمی Momo/LuCI را نصب می‌کند.
 - پروفایل `/etc/momo/profiles/iran-split-hy2.json` را می‌سازد.
 - Ruleهای ایران را در `/etc/momo/rules/` قرار می‌دهد.
 - DNS Hijack، TCP Redirect و UDP TPROXY را برای LAN تشخیص‌داده‌شده تنظیم می‌کند.

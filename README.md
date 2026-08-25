@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 # openwrt-iran-split-tunnel
 
 <p align="center">
@@ -87,11 +90,26 @@ The project is not tied to one Linksys, TP-Link, Xiaomi, GL.iNet, x86, or other 
 Back up the router before installation. Avoid first-time deployment on a remote
 router without failsafe, serial, or firmware-recovery access.
 
+### Prerequisite preflight order
+
+Before downloading Momo, asking for credentials, or changing tunnel settings,
+the installer:
+
+1. Validates the OpenWrt release, package architecture, and available Overlay space.
+2. Checks each required package with `apk` or `opkg`.
+3. Adds `curl` only when no existing downloader is available.
+4. Updates package indexes only when something is missing.
+5. Installs only missing prerequisite packages.
+6. Verifies the required commands, downloader, `firewall4`, and `inet fw4` table.
+7. Continues to Momo download and configuration only after all checks succeed.
+
+A failed prerequisite stops the installer before Momo configuration is changed.
+
 ## What the installer changes
 
 The installer:
 
-- installs required OpenWrt packages and official Momo/LuCI release assets;
+- checks and installs missing OpenWrt prerequisites, then installs official Momo/LuCI release assets;
 - creates `/etc/momo/profiles/iran-split-hy2.json`;
 - stores Iran rule sets under `/etc/momo/rules/`;
 - configures Momo DNS hijack, TCP Redirect, and UDP TPROXY for the detected LAN;

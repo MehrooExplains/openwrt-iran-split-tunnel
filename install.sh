@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 #!/bin/sh
 # openwrt-iran-split-tunnel
 # Automatic Iran DIRECT / international Hysteria2 split tunneling for OpenWrt.
@@ -67,14 +70,48 @@ if command -v apk >/dev/null 2>&1; then
     pkg_update() { apk update; }
     pkg_install() { apk add "$@"; }
     local_pkg_install() { apk add --allow-untrusted "$@"; }
+    package_installed() { apk info -e "$1" >/dev/null 2>&1; }
 elif command -v opkg >/dev/null 2>&1; then
     PKG_MGR="opkg"
     pkg_update() { opkg update; }
     pkg_install() { opkg install "$@"; }
     local_pkg_install() { opkg install "$@"; }
+    package_installed() { opkg status "$1" 2>/dev/null | grep -q '^Status: install ok installed'; }
 else
     die "Neither apk nor opkg was found."
 fi
+
+ensure_packages() {
+    needs_install=0
+    for package in "$@"; do
+        if package_installed "$package"; then
+            log "Prerequisite package already installed: $package"
+        else
+            log "Missing prerequisite package: $package"
+            needs_install=1
+        fi
+    done
+
+    if [ "$needs_install" -eq 0 ]; then
+        return 0
+    fi
+
+    log "Updating package indexes for missing prerequisites..."
+    pkg_update || warn "Package index update returned an error; trying the available indexes."
+
+    for package in "$@"; do
+        if ! package_installed "$package"; then
+            log "Installing prerequisite package: $package"
+            pkg_install "$package" || die "Could not install required package: $package"
+        fi
+    done
+}
+
+verify_commands() {
+    for cmd in "$@"; do
+        command -v "$cmd" >/dev/null 2>&1 || die "Prerequisite verification failed; command '$cmd' is still missing."
+    done
+}
 
 VERSION="${DISTRIB_RELEASE:-unknown}"
 ARCH="${DISTRIB_ARCH:-}"
@@ -89,19 +126,9 @@ case "$VERSION" in
         ;;
 esac
 
-command -v nft >/dev/null 2>&1 || die "nftables is required."
-command -v fw4 >/dev/null 2>&1 || die "firewall4 is required; firewall3/iptables-only systems are not supported."
-nft list table inet fw4 >/dev/null 2>&1 || die "firewall4 table inet fw4 is not available."
-
-MODEL="unknown"
-if command -v jsonfilter >/dev/null 2>&1 && command -v ubus >/dev/null 2>&1; then
-    MODEL="$(ubus call system board 2>/dev/null | jsonfilter -e '@.model' 2>/dev/null || true)"
-fi
-[ -n "$MODEL" ] || MODEL="unknown"
 RAM_KB="$(awk '/MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
 FREE_KB="$(df -k /overlay 2>/dev/null | awk 'NR==2 {print $4}' || echo 0)"
 
-log "Device: $MODEL"
 log "OpenWrt: $VERSION"
 log "Architecture: $ARCH"
 log "Package manager: $PKG_MGR"
@@ -112,11 +139,24 @@ if ! command -v sing-box >/dev/null 2>&1 && [ "$FREE_KB" -gt 0 ] 2>/dev/null && 
     die "Less than about 28 MiB is free on /overlay and sing-box is not installed. Use extroot/USB storage or free space first."
 fi
 
-log "Updating package indexes..."
-pkg_update || warn "Package index update returned an error; continuing with currently available indexes."
+log "Checking tunnel prerequisites..."
+if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || command -v uclient-fetch >/dev/null 2>&1; then
+    ensure_packages ca-bundle jsonfilter firewall4 ip-full kmod-inet-diag kmod-nft-socket kmod-nft-tproxy kmod-tun sing-box
+else
+    ensure_packages ca-bundle curl jsonfilter firewall4 ip-full kmod-inet-diag kmod-nft-socket kmod-nft-tproxy kmod-tun sing-box
+fi
 
-log "Installing runtime dependencies..."
-pkg_install ca-bundle jsonfilter firewall4 ip-full kmod-inet-diag kmod-nft-socket kmod-nft-tproxy kmod-tun sing-box || die "Could not install required OpenWrt packages."
+log "Verifying installed tunnel prerequisites..."
+verify_commands nft fw4 jsonfilter sing-box uci ubus tar find sed awk grep
+if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1 && ! command -v uclient-fetch >/dev/null 2>&1; then
+    die "Prerequisite verification failed; no downloader is available."
+fi
+nft list table inet fw4 >/dev/null 2>&1 || die "firewall4 is installed, but table 'inet fw4' is unavailable. Start or repair the firewall service first."
+
+MODEL="$(ubus call system board 2>/dev/null | jsonfilter -e '@.model' 2>/dev/null || true)"
+[ -n "$MODEL" ] || MODEL="unknown"
+log "Device: $MODEL"
+log "All tunnel prerequisites are ready."
 
 modprobe nft_tproxy 2>/dev/null || true
 modprobe nft_socket 2>/dev/null || true
